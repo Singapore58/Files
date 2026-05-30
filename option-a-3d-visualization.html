@@ -1,0 +1,427 @@
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Option A - 3D Room Visualization</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+        h1 {
+            text-align: center;
+            color: #1a5490;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 20px;
+        }
+        canvas {
+            display: block;
+            margin: 0 auto;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            background: #f5f5f5;
+        }
+        .controls {
+            text-align: center;
+            margin-top: 20px;
+        }
+        button {
+            background: #1a5490;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #0d3a66;
+        }
+        .legend {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 8px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .legend-color {
+            width: 30px;
+            height: 30px;
+            border-radius: 4px;
+            border: 2px solid #333;
+        }
+        .info-panel {
+            background: #e3f2fd;
+            border-left: 4px solid #1a5490;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 4px;
+        }
+        .info-panel h3 {
+            margin-top: 0;
+            color: #1a5490;
+        }
+        .measurements {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .measurement-box {
+            background: white;
+            padding: 12px;
+            border-radius: 4px;
+            text-align: center;
+            border: 1px solid #ddd;
+        }
+        .measurement-box strong {
+            color: #1a5490;
+            display: block;
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏠 Option A: Linear Arrangement - 3D Visualization</h1>
+        <p class="subtitle">Kids Room Layout - 200cm × 183cm | Interactive 3D Model</p>
+        
+        <canvas id="canvas" width="1300" height="700"></canvas>
+        
+        <div class="controls">
+            <button onclick="rotateView('left')">⬅️ Rotate Left</button>
+            <button onclick="rotateView('right')">➡️ Rotate Right</button>
+            <button onclick="rotateView('up')">⬆️ Rotate Up</button>
+            <button onclick="rotateView('down')">⬇️ Rotate Down</button>
+            <button onclick="resetView()">🔄 Reset View</button>
+            <button onclick="toggleWireframe()">👁️ Toggle Wireframe</button>
+        </div>
+
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color" style="background: #FFD700;"></div>
+                <span><strong>Desks</strong> (60×60cm)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #D2B48C;"></div>
+                <span><strong>Bookshelf</strong> (180×60cm)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #A0A0A0;"></div>
+                <span><strong>Drawers</strong> (170×45cm)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #87CEEB;"></div>
+                <span><strong>Window</strong> (160cm)</span>
+            </div>
+        </div>
+
+        <div class="measurements">
+            <div class="measurement-box">
+                <strong>Room Width</strong>
+                200 cm
+            </div>
+            <div class="measurement-box">
+                <strong>Room Depth</strong>
+                183 cm
+            </div>
+            <div class="measurement-box">
+                <strong>Ceiling Height</strong>
+                250 cm (std)
+            </div>
+        </div>
+
+        <div class="info-panel">
+            <h3>📋 Layout Overview</h3>
+            <ul style="margin: 10px 0; padding-left: 20px;">
+                <li><strong>3 Desks:</strong> Arranged side-by-side for easy supervision (60×60cm each)</li>
+                <li><strong>Bookshelf Unit:</strong> Wall-mounted above desks for book storage (180cm wide)</li>
+                <li><strong>Drawer Unit:</strong> Under desks for supplies, toys & personal items (170cm)</li>
+                <li><strong>Open Space:</strong> ~100cm circulation area for movement and play activities</li>
+                <li><strong>Natural Light:</strong> Window provides illumination across all work stations</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        // Room dimensions (in cm, scaled for display)
+        const roomWidth = 200;
+        const roomDepth = 183;
+        const roomHeight = 250;
+        const scale = 1.5; // pixels per cm
+
+        // Camera/rotation angles
+        let rotationX = 0.5;
+        let rotationY = 0.7;
+        let wireframe = false;
+
+        // 3D Point class
+        class Point3D {
+            constructor(x, y, z) {
+                this.x = x;
+                this.y = y;
+                this.z = z;
+            }
+
+            rotate(rx, ry) {
+                let x = this.x;
+                let y = this.y;
+                let z = this.z;
+
+                // Rotate around X axis
+                let cosRx = Math.cos(rx);
+                let sinRx = Math.sin(rx);
+                let y1 = y * cosRx - z * sinRx;
+                let z1 = y * sinRx + z * cosRx;
+
+                // Rotate around Y axis
+                let cosRy = Math.cos(ry);
+                let sinRy = Math.sin(ry);
+                let x2 = x * cosRy + z1 * sinRy;
+                let z2 = -x * sinRy + z1 * cosRy;
+
+                return new Point3D(x2, y1, z2);
+            }
+
+            project(distance = 500) {
+                let scale = distance / (distance + this.z);
+                return {
+                    x: this.x * scale + canvas.width / 2,
+                    y: this.y * scale + canvas.height / 2,
+                    z: this.z,
+                    scale: scale
+                };
+            }
+        }
+
+        // Create 3D box
+        function createBox(x, y, z, w, d, h, color) {
+            const points = [
+                new Point3D(x, y, z),
+                new Point3D(x + w, y, z),
+                new Point3D(x + w, y + d, z),
+                new Point3D(x, y + d, z),
+                new Point3D(x, y, z + h),
+                new Point3D(x + w, y, z + h),
+                new Point3D(x + w, y + d, z + h),
+                new Point3D(x, y + d, z + h),
+            ];
+
+            const faces = [
+                { points: [0, 1, 2, 3], color: color, opacity: 1 }, // bottom
+                { points: [4, 5, 6, 7], color: color, opacity: 0.8 }, // top
+                { points: [0, 1, 5, 4], color: color, opacity: 0.9 }, // front
+                { points: [2, 3, 7, 6], color: color, opacity: 0.7 }, // back
+                { points: [0, 3, 7, 4], color: color, opacity: 0.85 }, // left
+                { points: [1, 2, 6, 5], color: color, opacity: 0.75 }, // right
+            ];
+
+            return { points, faces };
+        }
+
+        // Draw scene
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#f0f0f0';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Create all objects
+            const objects = [];
+
+            // Room walls (centered around origin)
+            const centerX = -roomWidth / 2;
+            const centerY = -roomDepth / 2;
+            const centerZ = 0;
+
+            // Floor
+            objects.push({
+                ...createBox(centerX, centerY, centerZ, roomWidth, roomDepth, 5, '#e8e8e8'),
+                zIndex: centerZ
+            });
+
+            // Walls
+            objects.push({
+                ...createBox(centerX, centerY, centerZ, roomWidth, 5, roomHeight, '#f5f5f5'),
+                zIndex: centerY
+            });
+            objects.push({
+                ...createBox(centerX, centerY + roomDepth - 5, centerZ, roomWidth, 5, roomHeight, '#f5f5f5'),
+                zIndex: centerY + roomDepth
+            });
+            objects.push({
+                ...createBox(centerX, centerY, centerZ, 5, roomDepth, roomHeight, '#f5f5f5'),
+                zIndex: centerX
+            });
+
+            // Window (blue rectangle on wall)
+            const windowX = centerX + 20;
+            const windowY = centerY - 2;
+            const windowZ = 180;
+            objects.push({
+                ...createBox(windowX, windowY, windowZ, 160, 3, 60, '#87CEEB'),
+                zIndex: windowY
+            });
+
+            // Bookshelf Unit (top wall)
+            objects.push({
+                ...createBox(centerX + 10, centerY + 10, 150, 180, 30, 80, '#D2B48C'),
+                zIndex: centerY + 10
+            });
+
+            // Desk 1
+            objects.push({
+                ...createBox(centerX + 10, centerY + 50, 0, 60, 60, 75, '#FFD700'),
+                zIndex: centerY + 50
+            });
+
+            // Desk 2
+            objects.push({
+                ...createBox(centerX + 80, centerY + 50, 0, 60, 60, 75, '#FFD700'),
+                zIndex: centerY + 50
+            });
+
+            // Desk 3
+            objects.push({
+                ...createBox(centerX + 150, centerY + 50, 0, 60, 60, 75, '#FFD700'),
+                zIndex: centerY + 50
+            });
+
+            // Drawer Unit (under desks)
+            objects.push({
+                ...createBox(centerX + 10, centerY + 120, 0, 170, 45, 50, '#A0A0A0'),
+                zIndex: centerY + 120
+            });
+
+            // Sort by z-index for painter's algorithm
+            objects.sort((a, b) => a.zIndex - b.zIndex);
+
+            // Draw objects
+            objects.forEach(obj => {
+                obj.faces.forEach(face => {
+                    const projectedPoints = face.points.map(i => {
+                        const rotated = obj.points[i].rotate(rotationX, rotationY);
+                        return rotated.project();
+                    });
+
+                    // Calculate average Z for depth sorting
+                    const avgZ = projectedPoints.reduce((sum, p) => sum + p.z, 0) / projectedPoints.length;
+
+                    // Draw face
+                    ctx.fillStyle = face.color;
+                    ctx.globalAlpha = face.opacity * (wireframe ? 0.3 : 0.8);
+                    ctx.beginPath();
+                    ctx.moveTo(projectedPoints[0].x, projectedPoints[0].y);
+                    for (let i = 1; i < projectedPoints.length; i++) {
+                        ctx.lineTo(projectedPoints[i].x, projectedPoints[i].y);
+                    }
+                    ctx.closePath();
+                    ctx.fill();
+
+                    // Draw wireframe
+                    ctx.globalAlpha = 1;
+                    ctx.strokeStyle = '#333';
+                    ctx.lineWidth = wireframe ? 2 : 1;
+                    ctx.stroke();
+                });
+            });
+
+            // Draw labels
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = '#333';
+            ctx.font = 'bold 14px Arial';
+            ctx.textAlign = 'center';
+
+            // Label desks
+            const desk1Pos = new Point3D(centerX + 40, centerY + 80, 37).rotate(rotationX, rotationY).project();
+            ctx.fillText('DESK 1', desk1Pos.x, desk1Pos.y);
+
+            const desk2Pos = new Point3D(centerX + 110, centerY + 80, 37).rotate(rotationX, rotationY).project();
+            ctx.fillText('DESK 2', desk2Pos.x, desk2Pos.y);
+
+            const desk3Pos = new Point3D(centerX + 180, centerY + 80, 37).rotate(rotationX, rotationY).project();
+            ctx.fillText('DESK 3', desk3Pos.x, desk3Pos.y);
+
+            // Draw ground grid for reference
+            ctx.globalAlpha = 0.2;
+            ctx.strokeStyle = '#ccc';
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= 200; i += 50) {
+                const p1 = new Point3D(centerX + i, centerY, centerZ).rotate(rotationX, rotationY).project();
+                const p2 = new Point3D(centerX + i, centerY + roomDepth, centerZ).rotate(rotationX, rotationY).project();
+                ctx.beginPath();
+                ctx.moveTo(p1.x, p1.y);
+                ctx.lineTo(p2.x, p2.y);
+                ctx.stroke();
+            }
+
+            // Instructions
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = '#666';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillText('Use buttons to rotate | Use arrow keys for rotation control', 20, 30);
+        }
+
+        // Rotation controls
+        function rotateView(direction) {
+            const step = 0.2;
+            switch(direction) {
+                case 'left': rotationY -= step; break;
+                case 'right': rotationY += step; break;
+                case 'up': rotationX -= step; break;
+                case 'down': rotationX += step; break;
+            }
+            draw();
+        }
+
+        function resetView() {
+            rotationX = 0.5;
+            rotationY = 0.7;
+            draw();
+        }
+
+        function toggleWireframe() {
+            wireframe = !wireframe;
+            draw();
+        }
+
+        // Keyboard controls
+        document.addEventListener('keydown', (e) => {
+            switch(e.key) {
+                case 'ArrowLeft': rotateView('left'); break;
+                case 'ArrowRight': rotateView('right'); break;
+                case 'ArrowUp': rotateView('up'); break;
+                case 'ArrowDown': rotateView('down'); break;
+            }
+        });
+
+        // Initial draw
+        draw();
+    </script>
+</body>
+</html>
